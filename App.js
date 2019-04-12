@@ -1,5 +1,13 @@
-import React, { useMemo, useReducer, useEffect, useRef } from 'react'
-import { BehaviorSubject, interval, empty, queueScheduler } from 'rxjs'
+import React, { useMemo, useReducer, useEffect, useRef, useState } from 'react'
+import {
+  BehaviorSubject,
+  Subject,
+  interval,
+  empty,
+  queueScheduler,
+  Observable,
+  merge
+} from 'rxjs'
 import { ajax } from 'rxjs/ajax'
 import {
   map,
@@ -14,7 +22,7 @@ import produce from 'immer'
 
 export const ofType = (...keys) => source =>
   source.pipe(
-    filter(({ action }) => {
+    filter(action => {
       if (!action) return false
       const { type } = action
       const len = keys.length
@@ -32,41 +40,61 @@ export const ofType = (...keys) => source =>
     })
   )
 
+export class StateObservable extends Observable {
+  constructor(stateSubject, initialState) {
+    super(subscriber => {
+      const subscription = this.__notifier.subscribe(subscriber)
+      if (subscription && !subscription.closed) {
+        subscriber.next(this.value)
+      }
+      return subscription
+    })
+
+    this.value = initialState
+    this.__notifier = new Subject()
+    this.__subscription = stateSubject.subscribe(value => {
+      if (value !== this.value) {
+        this.value = value
+        this.__notifier.next(value)
+      }
+    })
+  }
+}
+
 function useActions(createActions, initialState = {}, epics = []) {
-  let subjectRef$ = useRef(null)
+  let stateRef$ = useRef(null)
+  let actionRef$ = useRef(null)
+
   let wrappedActions
-  // create reducer
+
+  const [lastAction, setLastAction] = useState(null)
+
   const reducer = useMemo(() => {
     return produce((state, action) =>
       createActions(state)[action.type](action.payload)
     )
   }, [createActions])
 
+  const [state, dispatch] = useReducer(reducer, initialState)
+
   useEffect(() => {
-    const subject = new BehaviorSubject({
-      action: { type: null },
-      state,
-      actions: wrappedActions
-    }).pipe(
+    stateRef$.current = new BehaviorSubject(initialState).pipe(
       observeOn(queueScheduler),
       distinctUntilChanged()
     )
+    actionRef$.current = new Subject().pipe(observeOn(queueScheduler))
 
-    subjectRef$.current = subject
+    const state$ = new StateObservable(stateRef$.current, initialState)
 
-    const epics$ = epics.map(epic => epic(subjectRef$.current))
+    const epics$ = epics.map(epic =>
+      epic(actionRef$.current, state$, wrappedActions)
+    )
+
     const effectSubscriptions$ = epics$.map(e => e.subscribe())
 
-    subjectRef$.current.next({
-      action: { type: '$$initialize', payload: null },
-      state,
-      actions: wrappedActions
-    })
+    return () => effectSubscriptions$.forEach(e => e.unsubscribe())
+  }, [])
 
-    return () => effectSubscriptions$.forEach(fx => fx.unsubscribe())
-  }, [subjectRef$])
-
-  const [state, dispatch] = useReducer(reducer, initialState)
   const actionTypes = Object.keys(createActions(initialState))
 
   wrappedActions = useMemo(() => {
@@ -74,17 +102,25 @@ function useActions(createActions, initialState = {}, epics = []) {
       const dispatchWithEpic = payload => {
         const action = { type, payload }
         const nextState = reducer(state, action)
+        // while an action that returns undefined is not dispatched,
+        // is is pushed into the epic to trigger side-effects
         nextState !== undefined && dispatch(action)
-        subjectRef$.current.next({
-          action,
-          state: nextState || state,
-          actions: wrappedActions
-        })
+        setLastAction(action)
       }
       acc[type] = payload => dispatchWithEpic(payload)
       return acc
     }, {})
   }, [wrappedActions, state, createActions, dispatch, actionTypes])
+
+  useEffect(() => {
+    if (lastAction) {
+      stateRef$.current.next(state)
+      actionRef$.current.next(lastAction)
+    }
+
+    setLastAction(null)
+  }, [lastAction])
+
   return [state, wrappedActions]
 }
 
@@ -114,29 +150,33 @@ const createActions = state => ({
 })
 
 const epics = [
-  obs$ =>
-    obs$.pipe(
+  (action$, state$, actions) =>
+    action$.pipe(
       ofType('start', 'stop'),
-      switchMap(v => {
-        return v.action.type === 'start'
-          ? interval(v.state.delay).pipe(map(v.actions.inc))
+      switchMap(({ type }) => {
+        return type === 'start'
+          ? interval(state$.value.delay).pipe(map(actions.inc))
           : empty()
       })
     ),
-  obs$ =>
-    obs$.pipe(
+  (action$, _, actions) =>
+    action$.pipe(
       ofType('getDog'),
-      switchMap(v => {
+      switchMap(() => {
         return ajax
           .getJSON('https://dog.ceo/api/breeds/image/random')
-          .pipe(map(res => v.actions.setDog(res.message)))
+          .pipe(map(res => actions.setDog(res.message)))
       })
     ),
-  obs$ =>
-    obs$.pipe(
-      tap(({ action, state }) => {
+  (action$, state$) =>
+    action$.pipe(
+      tap(action => {
         console.group('%c action', 'color: gray; font-weight: lighter;', action)
-        console.log('%c state', 'color: #9E9E9E; font-weight: bold;', state)
+        console.log(
+          '%c state',
+          'color: #9E9E9E; font-weight: bold;',
+          state$.value
+        )
         console.groupEnd()
       }),
       ignoreElements()
