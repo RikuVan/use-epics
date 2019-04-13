@@ -1,22 +1,36 @@
 {
-  "name": "useepicactions",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "use-epics",
+  "version": "0.1.0",
+  "description": "React hook combining a simplied api for useReducer and epics for side-effects.",
+  "source": "src/index.ts",
+  "main": "dist/use-epics.js",
+  "module": "dist/use-epics.m.js",
+  "typings": "index.d.ts",
   "scripts": {
-    "start": "parcel ./index.html",
+    "build": "microbundle",
+    "lint": "tslint  --project tsconfig.json -t codeFrame 'src/**/*.ts'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Richard van Camp",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.18.0",
-    "immer": "^2.1.5",
+    "@types/react": "^16.8.8",
     "react": "^16.8.6",
-    "react-dom": "^16.8.6",
     "rxjs": "^6.4.0"
   },
   "devDependencies": {
-    "parcel-bundler": "^1.12.3"
+    "jest": "^24.7.1",
+    "microbundle": "^0.11.0",
+    "parcel-bundler": "^1.12.3",
+    "typescript": "^3.4.3",
+    "ts-jest": "^24.0.2",
+    "tslint": "^5.15.0",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-config-standard": "^8.0.1"
+  },
+  "peerDependencies": {
+    "immer": "^2.1.5",
+    "react": "^16.8.0",
+    "rxjs": "^6.4.0"
   }
 }
