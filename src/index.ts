@@ -43,7 +43,7 @@ export type StateFor<A extends Actions> = A extends Actions<infer S, any>
   ? S
   : never
 
-export type CallbacksFor<M extends Actions> = M extends Actions<any, infer R>
+export type CallbacksFor<A extends Actions> = A extends Actions<any, infer R>
   ? {
       [T in ActionUnion<R>['type']]: (
         ...payload: ActionByType<ActionUnion<R>, T>['payload']
@@ -68,22 +68,18 @@ export type ActionByType<A, T> = A extends { type: infer T2 }
   ? (T extends T2 ? A : never)
   : never
 
-export declare interface Epic<
-  Input extends ActionUnion<any>,
-  Output extends Input = Input,
-  State = any
-> {
+export declare interface Epic<S, R extends ActionRecordBase<S>> {
   (
-    action$: Observable<Input>,
-    state$: StateObservable<State>,
-    actions: CallbacksFor<any>
-  ): Observable<Output>
+    action$: Observable<ActionUnion<R>>,
+    state$: StateObservable<S>,
+    actions: CallbacksFor<Actions<S, R>>
+  ): any
 }
 
 export function useEpics<S, R extends ActionRecordBase<S>>(
   createActions: Actions<S, R>,
   initialState: S,
-  epics = []
+  epics: Epic<S, R>[] = []
 ): StateAndCallbacksFor<typeof createActions> {
   let stateRef$ = useRef<BehaviorSubject<S> | null>(null)
   let actionRef$ = useRef<Subject<ActionUnion<R> | null> | null>(null)
@@ -109,11 +105,11 @@ export function useEpics<S, R extends ActionRecordBase<S>>(
 
     const state$ = new StateObservable(stateRef$.current, initialState)
 
-    const epics$ = epics.map((epic: Epic<any>) =>
+    const epics$ = epics.map(epic =>
       epic(
-        actionRef$.current as Observable<ActionUnion<R>>,
+        actionRef$.current as Subject<any>,
         state$,
-        wrappedActions as any
+        wrappedActions as CallbacksFor<typeof createActions>
       )
     )
 
@@ -126,23 +122,25 @@ export function useEpics<S, R extends ActionRecordBase<S>>(
     createActions(initialState)
   )
 
-  wrappedActions = useMemo(() => {
-    return actionTypes.reduce(
-      (acc, type) => {
-        const dispatchWithEpic = (payload: any) => {
-          const action = { type, payload } as ActionUnion<R>
-          const nextState = reducer(state, action)
-          // while an action that returns undefined is not dispatched,
-          // is is pushed into the epic to trigger side-effects
-          nextState !== undefined && dispatch(action)
-          setLastAction(action)
-        }
-        acc[type] = (...payload) => dispatchWithEpic(payload as any)
-        return acc
-      },
-      {} as CallbacksFor<typeof createActions>
-    )
-  }, [wrappedActions, state, createActions, dispatch, actionTypes])
+  wrappedActions = useMemo(
+    () =>
+      actionTypes.reduce(
+        (acc, type) => {
+          const dispatchWithEpic = (payload: any) => {
+            const action = { type, payload } as ActionUnion<R>
+            const nextState = reducer(state, action)
+            // while an action that returns undefined is not dispatched,
+            // is is pushed into the epic to trigger side-effects
+            nextState !== undefined && dispatch(action)
+            setLastAction(action)
+          }
+          acc[type] = (...payload) => dispatchWithEpic(payload as any)
+          return acc
+        },
+        {} as CallbacksFor<typeof createActions>
+      ),
+    actionTypes
+  )
 
   useEffect(() => {
     if (lastAction && stateRef$.current && actionRef$.current) {

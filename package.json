@@ -1,36 +1,78 @@
 {
   "name": "use-epics",
   "version": "0.1.0",
-  "description": "React hook combining a simplied api for useReducer and epics for side-effects.",
+  "description": "React hook combining a simplified usage of useReducer and redux-observable-ish epics for side-effects.",
+  "keywords": [
+    "react",
+    "hooks",
+    "useReducer",
+    "immer",
+    "state management",
+    "rxjs",
+    "epic"
+  ],
   "source": "src/index.ts",
   "main": "dist/use-epics.js",
   "module": "dist/use-epics.m.js",
   "typings": "index.d.ts",
   "scripts": {
     "build": "microbundle",
+    "dev": "watch microbundle",
     "lint": "tslint  --project tsconfig.json -t codeFrame 'src/**/*.ts'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --coverage",
+    "test:watch": "jest --coverage --watch",
+    "test:prod": "npm run lint && npm run test -- --no-cache"
   },
   "author": "Richard van Camp",
   "license": "ISC",
   "dependencies": {
     "@types/react": "^16.8.8",
+    "immer": "^2.1.5",
     "react": "^16.8.6",
     "rxjs": "^6.4.0"
   },
   "devDependencies": {
+    "@types/jest": "^24.0.11",
     "jest": "^24.7.1",
+    "jest-config": "^24.7.1",
     "microbundle": "^0.11.0",
     "parcel-bundler": "^1.12.3",
-    "typescript": "^3.4.3",
+    "react-testing-library": "^6.1.2",
     "ts-jest": "^24.0.2",
     "tslint": "^5.15.0",
     "tslint-config-prettier": "^1.18.0",
-    "tslint-config-standard": "^8.0.1"
+    "tslint-config-standard": "^8.0.1",
+    "typescript": "^3.4.3"
   },
   "peerDependencies": {
-    "immer": "^2.1.5",
     "react": "^16.8.0",
     "rxjs": "^6.4.0"
+  },
+  "jest": {
+    "transform": {
+      ".(ts|tsx)": "ts-jest"
+    },
+    "testEnvironment": "jsdom",
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/test/"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 90,
+        "functions": 95,
+        "lines": 95,
+        "statements": 95
+      }
+    },
+    "collectCoverageFrom": [
+      "src/*.{js,ts}"
+    ]
   }
 }

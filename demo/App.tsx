@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import { interval, empty } from 'rxjs'
 import { ajax } from 'rxjs/ajax'
 import { map, switchMap, tap, ignoreElements } from 'rxjs/operators'
-import { useEpics, ofType } from '../dist/use-epics'
+import { useEpics, ofType, Epic } from '../dist/use-epics'
 
 const initialState = {
   num: 0,
@@ -30,60 +30,86 @@ const createActions = (state: State) => ({
   stop() {
     state.delay = null
   },
-  getDog: () => {},
+  getDog: () => undefined,
   setDog(dogSrc: string) {
     state.dogSrc = dogSrc
   }
 })
 
-const epics = [
-  (action$, state$, actions) =>
-    action$.pipe(
-      ofType('start', 'stop'),
-      switchMap(({ type }) => {
-        return type === 'start'
-          ? interval(state$.value.delay).pipe(map(actions.inc))
-          : empty()
-      })
-    ),
-  (action$, _, actions) =>
-    action$.pipe(
-      ofType('getDog'),
-      switchMap(() => {
-        return ajax
-          .getJSON('https://dog.ceo/api/breeds/image/random')
-          .pipe(map((res: { message: string }) => actions.setDog(res.message)))
-      })
-    ),
-  (action$, state$) =>
-    action$.pipe(
-      tap(action => {
-        console.group('%c action', 'color: gray; font-weight: lighter;', action)
-        console.log(
-          '%c state',
-          'color: #9E9E9E; font-weight: bold;',
-          state$.value
-        )
-        console.groupEnd()
-      }),
-      ignoreElements()
-    )
-]
+const counterEpic: Epic<State, ReturnType<typeof createActions>> = (
+  action$,
+  state$,
+  actions
+) =>
+  action$.pipe(
+    ofType('start', 'stop'),
+    switchMap(({ type }) => {
+      return type === 'start'
+        ? interval(state$.value.delay).pipe(map(actions.inc))
+        : empty()
+    })
+  )
+
+const dogFetchEpic: Epic<State, ReturnType<typeof createActions>> = (
+  action$,
+  _,
+  actions
+) =>
+  action$.pipe(
+    ofType('getDog'),
+    switchMap(() => {
+      return ajax
+        .getJSON('https://dog.ceo/api/breeds/image/random')
+        .pipe(map((res: { message: string }) => actions.setDog(res.message)))
+    })
+  )
+
+const loggerEpic: Epic<State, ReturnType<typeof createActions>> = (
+  action$,
+  state$
+) =>
+  action$.pipe(
+    tap(action => {
+      console.group('%c action', 'color: gray; font-weight: lighter;', action)
+      console.log(
+        '%c state',
+        'color: #9E9E9E; font-weight: bold;',
+        state$.value
+      )
+      console.groupEnd()
+    }),
+    ignoreElements()
+  )
+
+const epics = [counterEpic, dogFetchEpic, loggerEpic]
 
 export function App() {
-  const [state, actions] = useEpics(createActions, initialState, epics)
+  const [state, { inc, dec, reset, start, stop, getDog }] = useEpics(
+    createActions,
+    initialState,
+    epics
+  )
+  // track how many times methods change (should never be more than zero)
+  const actionChanges = useRef(-1)
+  useEffect(() => {
+    actionChanges.current++
+  }, [inc, dec, reset, start, stop, getDog])
+
   return (
     <div className="App">
-      <div>{state.num}</div>
-      <button onClick={() => actions.inc()}>increment</button>
-      <button onClick={() => actions.dec()}>decrement</button>
-      <button onClick={() => actions.reset()}>reset</button>
+      <div data-testid="count">{state.num}</div>
+      <button onClick={() => inc()}>increment</button>
+      <button onClick={() => dec()}>decrement</button>
+      <button onClick={() => reset()}>reset</button>
       <div>
-        <button onClick={() => actions.start()}>start</button>
-        <button onClick={() => actions.stop()}>stop</button>
+        <button onClick={() => start()}>start</button>
+        <button onClick={() => stop()}>stop</button>
       </div>
-      <button onClick={() => actions.getDog()}>dog</button>
+      <button onClick={() => getDog()}>dog</button>
       <div>{state.dogSrc && <img src={state.dogSrc} />}</div>
+      <label>
+        actions created: <span>{actionChanges.current}</span>
+      </label>
     </div>
   )
 }

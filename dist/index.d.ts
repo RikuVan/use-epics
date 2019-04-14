@@ -7,7 +7,7 @@ export declare class StateObservable<S> extends Observable<S> {
 }
 export declare type StateAndCallbacksFor<A extends Actions> = [StateFor<A>, CallbacksFor<A>];
 export declare type StateFor<A extends Actions> = A extends Actions<infer S, any> ? S : never;
-export declare type CallbacksFor<M extends Actions> = M extends Actions<any, infer R> ? {
+export declare type CallbacksFor<A extends Actions> = A extends Actions<any, infer R> ? {
     [T in ActionUnion<R>['type']]: (...payload: ActionByType<ActionUnion<R>, T>['payload']) => void;
 } : never;
 export declare type Actions<S = any, R extends ActionRecordBase<S> = any> = (state: S) => R;
@@ -21,10 +21,10 @@ export declare type ActionUnion<R extends ActionRecordBase> = {
 export declare type ActionByType<A, T> = A extends {
     type: infer T2;
 } ? (T extends T2 ? A : never) : never;
-export declare interface Epic<Input extends ActionUnion<any>, Output extends Input = Input, State = any> {
-    (action$: Observable<Input>, state$: StateObservable<State>, actions: CallbacksFor<any>): Observable<Output>;
+export declare interface Epic<S, R extends ActionRecordBase<S>> {
+    (action$: Observable<ActionUnion<R>>, state$: StateObservable<S>, actions: CallbacksFor<Actions<S, R>>): any;
 }
-export declare function useEpics<S, R extends ActionRecordBase<S>>(createActions: Actions<S, R>, initialState: S, epics?: never[]): StateAndCallbacksFor<typeof createActions>;
+export declare function useEpics<S, R extends ActionRecordBase<S>>(createActions: Actions<S, R>, initialState: S, epics?: Epic<S, R>[]): StateAndCallbacksFor<typeof createActions>;
 export declare function ofTypeOperator<T extends ActionUnion<any>, R extends T = T, K extends R['type'] = R['type']>(...key: K[]): (source: Observable<T>) => Observable<R>;
 export declare const ofType: <T extends {
     type: string;
