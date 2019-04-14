@@ -1,7 +1,9 @@
-.cache/
+.cache
+.vscode
 .rts2_cache_cjs/
 .rts2_cache_es/
 .rts2_cache_umd/
-demo/dist/
 node_modules
 yarn-error.log
+dist
+coverage

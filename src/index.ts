@@ -68,12 +68,12 @@ export type ActionByType<A, T> = A extends { type: infer T2 }
   ? (T extends T2 ? A : never)
   : never
 
-export declare interface Epic<S, R extends ActionRecordBase<S>> {
+export declare interface Epic<S, R extends ActionRecordBase<S>, Output = any> {
   (
     action$: Observable<ActionUnion<R>>,
     state$: StateObservable<S>,
     actions: CallbacksFor<Actions<S, R>>
-  ): any
+  ): Observable<Output>
 }
 
 export function useEpics<S, R extends ActionRecordBase<S>>(
@@ -82,7 +82,7 @@ export function useEpics<S, R extends ActionRecordBase<S>>(
   epics: Epic<S, R>[] = []
 ): StateAndCallbacksFor<typeof createActions> {
   let stateRef$ = useRef<BehaviorSubject<S> | null>(null)
-  let actionRef$ = useRef<Subject<ActionUnion<R> | null> | null>(null)
+  let actionRef$ = useRef<Subject<ActionUnion<R>> | null>(null)
   const [lastAction, setLastAction] = useState<ActionUnion<R> | null>(null)
   let wrappedActions: CallbacksFor<typeof createActions> | undefined
 
@@ -99,15 +99,13 @@ export function useEpics<S, R extends ActionRecordBase<S>>(
       observeOn(queueScheduler),
       distinctUntilChanged()
     ) as BehaviorSubject<S>
-    actionRef$.current = new Subject().pipe(
-      observeOn(queueScheduler)
-    ) as Subject<ActionUnion<R> | null>
+    actionRef$.current = new Subject()
 
     const state$ = new StateObservable(stateRef$.current, initialState)
 
     const epics$ = epics.map(epic =>
       epic(
-        actionRef$.current as Subject<any>,
+        actionRef$.current as Observable<ActionUnion<R>>,
         state$,
         wrappedActions as CallbacksFor<typeof createActions>
       )

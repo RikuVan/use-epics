@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react'
 import { interval, empty } from 'rxjs'
 import { ajax } from 'rxjs/ajax'
 import { map, switchMap, tap, ignoreElements } from 'rxjs/operators'
-import { useEpics, ofType, Epic } from '../dist/use-epics'
+import { Epic, useEpics, ofType } from '../src'
 
 const initialState = {
   num: 0,
@@ -13,7 +13,7 @@ const initialState = {
 interface State {
   num: number
   delay: number | null
-  dogSrc?: string
+  dogSrc: string | null
 }
 
 const createActions = (state: State) => ({
@@ -44,8 +44,9 @@ const counterEpic: Epic<State, ReturnType<typeof createActions>> = (
   action$.pipe(
     ofType('start', 'stop'),
     switchMap(({ type }) => {
-      return type === 'start'
-        ? interval(state$.value.delay).pipe(map(actions.inc))
+      const delay = state$.value.delay
+      return type === 'start' && delay
+        ? interval(delay).pipe(map(actions.inc))
         : empty()
     })
   )
@@ -60,11 +61,11 @@ const dogFetchEpic: Epic<State, ReturnType<typeof createActions>> = (
     switchMap(() => {
       return ajax
         .getJSON('https://dog.ceo/api/breeds/image/random')
-        .pipe(map((res: { message: string }) => actions.setDog(res.message)))
+        .pipe(map((res: any) => actions.setDog(res.message)))
     })
   )
 
-const loggerEpic: Epic<State, ReturnType<typeof createActions>> = (
+/*const loggerEpic: Epic<State, ReturnType<typeof createActions>> = (
   action$,
   state$
 ) =>
@@ -79,9 +80,9 @@ const loggerEpic: Epic<State, ReturnType<typeof createActions>> = (
       console.groupEnd()
     }),
     ignoreElements()
-  )
+  )*/
 
-const epics = [counterEpic, dogFetchEpic, loggerEpic]
+const epics = [counterEpic, dogFetchEpic]
 
 export function App() {
   const [state, { inc, dec, reset, start, stop, getDog }] = useEpics(
