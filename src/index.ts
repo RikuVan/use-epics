@@ -114,7 +114,7 @@ export function useEpics<S, R extends ActionRecordBase<S>>(
     const effectSubscriptions$ = epics$.map(e => e.subscribe())
 
     return () => effectSubscriptions$.forEach(e => e.unsubscribe())
-  }, [])
+  }, [epics])
 
   const actionTypes: ActionUnion<R>['type'][] = Object.keys(
     createActions(initialState)
