@@ -67,5 +67,17 @@ describe("operators", () => {
             expect(marillaOrMilo).toEqual([{type: M, i: 0}, {type: MI, i: 1}])
             expect(loretta).toEqual([{type: L, i: 0}])
         })
+
+        it("should ignore if not called with action", () => {
+            const actions = new Subject()
+            const results: Action[] = []
+
+            actions.pipe(ofType(M)).subscribe((x: any) => results.push(x))
+
+            actions.next(null as any)
+            actions.next(undefined as any)
+            actions.next(false as any)
+            expect(results).toEqual([])
+        })
     })
 })
