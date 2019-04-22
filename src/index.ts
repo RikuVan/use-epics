@@ -7,7 +7,6 @@ import {
     Subscription
 } from "rxjs"
 import {observeOn, distinctUntilChanged, filter} from "rxjs/operators"
-import produce from "immer"
 
 // tslint:disable:variable-name
 export class StateObservable<S> extends Observable<S> {
@@ -76,32 +75,62 @@ export declare interface Epic<S, R extends ActionRecordBase<S>, Output = any> {
     ): Observable<Output>
 }
 
+type Initializer<S, I> = (arg: I) => S
+
+export declare interface Options<I = any, S = any> {
+    immer?: boolean
+    init?: Initializer<S, I>
+}
+
+const defaultOptions = {
+    immer: true,
+    init: undefined
+}
+
 export function useEpics<S, R extends ActionRecordBase<S>>(
     createActions: Actions<S, R>,
     initialState: S,
-    epics: Epic<S, R>[] = []
-): StateAndCallbacksFor<typeof createActions> {
+    epics: Epic<S, R>[],
+    options?: Options<S>
+): StateAndCallbacksFor<Actions<S, R>>
+export function useEpics<S, R extends ActionRecordBase<S>, I>(
+    createActions: Actions<S, R>,
+    initializerArg: I,
+    epics: Epic<S, R>[],
+    options?: Options<I, S>
+): StateAndCallbacksFor<Actions<S, R>>
+export function useEpics<S, R extends ActionRecordBase<S>, I = S>(
+    createActions: Actions<S, R>,
+    initialState: any,
+    epics: Epic<S, R>[] = [],
+    options: Options<any, S> = {}
+): StateAndCallbacksFor<Actions<S, R>> {
     let stateRef$ = useRef<BehaviorSubject<S> | null>(null)
     let actionRef$ = useRef<Subject<ActionUnion<R>> | null>(null)
     const [lastAction, setLastAction] = useState<ActionUnion<R> | null>(null)
     let wrappedActions: CallbacksFor<typeof createActions> | undefined
 
+    const opts = Object.assign(defaultOptions, options)
+
     const reducer = useMemo(() => {
-        return (produce as any)((state: S, action: ActionUnion<R>) =>
+        const update = (state: S, action: ActionUnion<R>) =>
             createActions(state)[action.type](action.payload)
-        )
+        return !opts.immer ? update : require("immer").default(update)
     }, [createActions])
 
-    const [state, dispatch] = useReducer(reducer, initialState)
+    const [state, dispatch] = useReducer(reducer, initialState, opts.init)
 
     useEffect(() => {
-        stateRef$.current = new BehaviorSubject(initialState).pipe(
+        const initializedState = (opts.init
+            ? (opts.init as any)(initialState)
+            : initialState) as S
+        stateRef$.current = new BehaviorSubject(initializedState).pipe(
             observeOn(queueScheduler),
             distinctUntilChanged()
         ) as BehaviorSubject<S>
         actionRef$.current = new Subject()
 
-        const state$ = new StateObservable(stateRef$.current, initialState)
+        const state$ = new StateObservable(stateRef$.current, initializedState)
 
         const epics$ = epics.map(epic =>
             epic(
