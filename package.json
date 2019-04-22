@@ -1,6 +1,6 @@
 {
   "name": "use-epics",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React hook combining a simplified usage of useReducer and redux-observable-ish epics for side-effects.",
   "keywords": [
     "react",
@@ -26,7 +26,9 @@
     "test": "jest",
     "test:watch": "jest --coverage --watch",
     "test:prod": "yarn run lint && jest --coverage",
-    "coverage": "jest --coverage && cat ./coverage/lcov.info | ./node_modules/.bin/coveralls && rm -rf ./coverage"
+    "coverage": "jest --coverage && cat ./coverage/lcov.info | ./node_modules/.bin/coveralls && rm -rf ./coverage",
+    "prepare": "npm run build",
+    "release": "npm run build && npm test && git commit -am $npm_package_version && git tag $npm_package_version && git push origin master && git push --tags && npm publish"
   },
   "author": "Richard Van Camp",
   "repository": {
