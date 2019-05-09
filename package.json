@@ -1,6 +1,6 @@
 {
   "name": "use-epics",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "React hook combining a simplified usage of useReducer and redux-observable-ish epics for side-effects.",
   "keywords": [
     "react",

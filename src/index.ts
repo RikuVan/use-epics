@@ -153,7 +153,7 @@ export function useEpics<S, R extends ActionRecordBase<S>, I = S>(
         () =>
             actionTypes.reduce(
                 (acc, type) => {
-                    const dispatchWithEpic = (payload: any) => {
+                    const dispatchWithEpic = ([payload]: any) => {
                         const action = {type, payload} as ActionUnion<R>
                         const nextState = reducer(state, action)
                         // while an action that returns undefined is not dispatched,
@@ -161,7 +161,7 @@ export function useEpics<S, R extends ActionRecordBase<S>, I = S>(
                         nextState !== undefined && dispatch(action)
                         setLastAction(action)
                     }
-                    acc[type] = (...payload) => dispatchWithEpic(payload as any)
+                    acc[type] = (...payload) => dispatchWithEpic(payload)
                     return acc
                 },
                 {} as CallbacksFor<typeof createActions>
