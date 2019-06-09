@@ -186,7 +186,7 @@ export declare function ofTypeOperator<
     T extends Action,
     R extends T = T,
     K extends R["type"] = R["type"]
->(...key: K[]): (source: Observable<T>) => Observable<R>
+>(...key: K[]): (source: Observable<T>) => Observable<Extract<R, { type: K}>>
 
 export const ofType = <T extends Action>(...keys: string[]) => (
     source: Observable<T>
